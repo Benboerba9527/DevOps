@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "bashdb",
+      "request": "launch",
+      "name": "Bash-Debug (bashdb)",
+      "program": "${file}",
+      "args": [],
+      "env": {},
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
