@@ -11,6 +11,15 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# 错误捕捉
+error_exit() {
+    local lineno=$1
+    local msg=$2
+    echo -e "${RED}发生错误: 第${lineno}行,命令:${msg}${NC}"
+    exit 1
+}
+trap 'error_exit ${LINENO} "$BASH_COMMAND"' ERR
+
 # Harbor配置
 HARBOR_URL="192.168.26.99"
 HARBOR_USER="benboerba"
@@ -53,9 +62,9 @@ push_image() {
 
     # 获取本地所有匹配镜像
     if [[ -z "${IMAGE_FILTER}" ]]; then
-        IMAGES=$(docker images | awk '{print $1"\t"$2"\t"$3"\t"$7$8}' | tail -n +2)
+        IMAGES=$(docker images --format '{{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}')
     else
-        IMAGES=$(docker images | grep "${IMAGE_FILTER}" | awk '{print $1"\t"$2"\t"$3"\t"$7$8}')
+        IMAGES=$(docker images --format '{{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}' | grep "${IMAGE_FILTER}")
     fi
 
     if [[ -z "${IMAGES}" ]]; then
@@ -65,12 +74,19 @@ push_image() {
 
     # 显示带序号的镜像列表
     echo -e "${GREEN}找到以下相关镜像:${NC}"
-    echo -e "序号\tREPOSITORY\tTAG\tIMAGE ID\tSIZE"
+    #echo -e "序号\tREPOSITORY\tTAG\tIMAGE ID\tSIZE"
+    # 对齐优化修改
+    #printf "序号\tREPOSITORY\tTAG\tIMAGE_ID\tSIZE\n"
+    printf "%-4s %-40s %-20s %-20s %-10s\n" "序号" "REPOSITORY" "TAG" "IMAGE_ID" "SIZE"
     IFS=$'\n'
     select_line=()
     i=1
     for line in ${IMAGES}; do
-        echo -e "${i}\t${line}"
+        REPO=$(echo -e "${line}" | awk '{print $1}')
+        TAG=$(echo -e "${line}" | awk '{print $2}')
+        IMAGE_ID=$(echo -e "${line}" | awk '{print $3}')
+        SIZE=$(echo -e "${line}" | awk '{print $4}')
+        printf "%-4s %-40s %-20s %-20s %-10s\n" "$i" "$REPO" "$TAG" "$IMAGE_ID" "$SIZE"
         select_line+=("${line}")
         ((i++))
     done
@@ -90,7 +106,11 @@ push_image() {
             echo -e "${RED}标签不能为空！${NC}"
             exit 1
         fi
+        # 目标Harbor镜像名
+        IMAGE_BASENAME=$(basename "$REPO")
+        HARBOR_REPO="${HARBOR_URL}/${PROJECT_NAME}/${IMAGE_BASENAME}"
         TAG="${NEW_TAG}"
+        docker tag "${IMAGE_ID}" "${REPO}:${TAG}"
     fi
 
     # 目标 Harbor 镜像名
@@ -113,6 +133,21 @@ push_image() {
         exit 1
     else
         echo -e "${GREEN}镜像 ${HARBOR_REPO}:${TAG} 推送成功！${NC}"
+    fi
+
+
+    # 是否查看该仓库下镜像列表
+    read -p "是否查看该仓库下的镜像列表？(y/n): " VIEW_IMAGES
+    if [[ "${VIEW_IMAGES}" == "y" || "${VIEW_IMAGES}" == "Y" ]]; then
+        echo -e "${YELLOW}仓库 ${PROJECT_NAME} 下的镜像列表:${NC}"
+        curl -sk -u "${HARBOR_USER}:${HARBOR_PASSWORD}" \
+            "https://${HARBOR_URL}/api/v2.0/projects/${PROJECT_NAME}/repositories" \
+            | jq -r '.[] | .name' | while read repo; do
+                echo -e "${BLUE}镜像: $repo${NC}"
+                curl -sk -u "${HARBOR_USER}:${HARBOR_PASSWORD}" \
+                    "https://${HARBOR_URL}/api/v2.0/projects/${PROJECT_NAME}/repositories/${repo//\//%2F}/artifacts" \
+                    | jq -r '.[] | "  标签: " + (.tags[]?.name // "无")'
+            done
     fi
 
     # 是否继续
