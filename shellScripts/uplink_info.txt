@@ -1,0 +1,38 @@
+#mysql -h 127.0.0.1 -D tianji -sN -e "select uplink_info from machine where machine='023b07105.cloud.b08.am186'" | awk -F"|" '{print $1 "\n" $3":"$4":"$7}'
+DSW-VM-G1-P-1.AM186
+ASW-2-3-B07.AM186:10.9.64.130:Ten-GigabitEthernet1/0/17;DSW-VM-G1-P-1.AM186
+
+[root@a51c01201.cloud.c03.am118 /apsarapangu/disk6/NJCB/hb/scripts]南京银行-OPS1
+#mysql -h 127.0.0.1 -D tianji -sN -e "select uplink_info from machine where machine='023b07105.cloud.b08.am186'"
+DSW-VM-G1-P-1.AM186||ASW-2-3-B07.AM186|10.9.64.130|aaaaa|eth0|Ten-GigabitEthernet1/0/17;DSW-VM-G1-P-1.AM186||ASW-2-3-B07.AM186|10.9.64.130|vvvvv|eth1|Ten-GigabitEthernet2/0/17
+
+
+
+
+
+#cat machine_uplink_info.sh 
+#!/bin/sh
+#****************************************************************#
+# ScriptName: machine_down_qery.sh
+# Author: $SHTERM_REAL_USER@alibaba-inc.com
+# Create Date: 2025-05-16 05:39
+# Modify Author: $SHTERM_REAL_USER@alibaba-inc.com
+# Modify Date: 2025-05-16 05:39
+# Function: 根据宕机短信中物理机名直接查询物理机uplink_info，然后登录对应交换机定位问题
+#***************************************************************#
+
+# 宕机物理机上联信息查询
+
+# 输入宕机物理机名查询
+read -p $'\e[32m请输入待查询物理机HostName:\e[0m' HOSTNAME
+
+UPLINK_PORT_1=`mysql -h 127.0.0.1 -D tianji -sN -e "select uplink_info from machine where machine='$HOSTNAME'" | awk -F";" '{print $1}' | awk -F"|" '{print $1 "\n" $3":"$4":"$7}'`
+
+UPLINK_PORT_2=`mysql -h 127.0.0.1 -D tianji -sN -e "select uplink_info from machine where machine='$HOSTNAME'" | awk -F";" '{print $2}' | awk -F"|" '{print $1 "\n" $3":"$4":"$7}'`
+
+echo -e "\033[32m$HOSTNAME的上联信息：\033[0m"
+echo -e "\033[32mUplink_info_1:$UPLINK_PORT_1\033[0m"
+echo -e "\033[32mUplink_info_1:$UPLINK_PORT_2\033[0m"
+
+
+# 待补充自动登录交换机并查看指定端口光衰以及是否存在up/down告警信息功能
