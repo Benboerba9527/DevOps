@@ -1,0 +1,3 @@
+Local_hostname: xxxxxxxxx
+Local_address: x.x.x.x
+Local_cluster: xxxxx-x-xxxxx-xxxx
