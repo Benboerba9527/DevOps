@@ -16,7 +16,7 @@ fi
 
 # 自动生成/root/.ssh/config，指定主机使用id_rsa_ansible
 cat > /root/.ssh/config <<EOF
-Host k8s-*
+Host k8s-* 192.168.26.*
     HostName %h
     User root
     IdentityFile /root/.ssh/id_rsa_ansible
