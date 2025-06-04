@@ -1,0 +1,11 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: custom-food-menu-mysql
+provisioner: cluster.local/nfs-csi-nfs-subdir-external-provisioner
+parameters:
+  server: 192.168.26.99
+  share: /data/nfs/food_menu
+reclaimPolicy: Retain
+mountOptions:
+  - vers=4.1

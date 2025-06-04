@@ -38,7 +38,7 @@ fi
 
 # 自动生成/root/.ssh/config，指定主机使用id_rsa_ansible
 cat > /root/.ssh/config <<EOF
-Host k8s-*
+Host k8s-* 192.168.26*
     HostName %h
     User root
     IdentityFile /root/.ssh/id_rsa_ansible
@@ -95,15 +95,15 @@ for i in "${k8s_host_list[@]}"; do
     fi
 done
 
-2、ansible配置inventory清单
+3、ansible配置inventory清单
 vim /etc/ansible/hosts
 [all]
-192.168.26.21
-192.168.26.22
-192.168.26.23
-192.168.26.24
-192.168.26.25
-192.168.26.26
+k8s-master-1 ansible_host=192.168.26.21
+k8s-master-2 ansible_host=192.168.26.22
+k8s-master-3 ansible_host=192.168.26.23
+k8s-worker-1 ansible_host=192.168.26.24
+k8s-worker-2 ansible_host=192.168.26.25
+k8s-worker-3 ansible_host=192.168.26.26
 
 [masters]
 192.168.26.21
@@ -148,3 +148,31 @@ k8s-master-1   ansible_host=192.168.26.21
 [nodes_excluding_control:children]
 masters
 workers
+
+
+
+二、常见用法
+1、文件复制
+fetch 模块（远程→本地，常用）
+ansible k8s-master-1 -m fetch -a "src=/etc/kubernetes/admin.conf dest=/root/ flat=yes"
+
+synchronize 模块（基于 rsync，支持双向）
+远程→本地（pull）：
+ansible k8s-master-1 -m synchronize -a "mode=pull src=/etc/kubernetes/ dest=/root/k8s-config/"
+
+本地→远程（push，默认）：
+ansible k8s-master-1 -m synchronize -a "src=/root/k8s-config/ dest=/etc/kubernetes/"
+
+copy 模块（本地→远程，不支持远程到本地）
+ansible k8s-master-1 -m copy -a "src=/local/path/to/file dest=/remote/path/to/file"
+
+
+2、创建目录
+ansible k8s -m file -a "path=/opt/cert/{{ item }} state=directory mode=0755" --become -e "item=etcd" -e "item=pki"    #创建多个目录时最后一个item会顶替前面的，所以只能分开执行或者使用playbook
+ansible k8s -m file -a "path=/opt/cert/kubeconfig state=directory mode=0755" --become                                 #创建单个目录
+
+
+3、执行apt install 避免多余输出
+ansible workers -m shell -a "sudo apt-get update -qq && sudo apt-get install -y -qq nfs-common" -o
+
+

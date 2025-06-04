@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: food-menu-pvc
+  namespace: custom-food-menu
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: custom-food-menu-mysql
+  resources:
+    requests:
+      storage: 20Gi

@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-eip-test
+  namespace: custom-food-menu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-eip-test
+  template:
+    metadata:
+      labels:
+        app: nginx-eip-test
+    spec:
+      containers:
+      - name: nginx
+        image: 192.168.26.99/custom_food_menu/nginx:1.28
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"

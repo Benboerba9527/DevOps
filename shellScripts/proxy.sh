@@ -5,31 +5,42 @@ PROXY_ADD="192.168.31.163"
 PROXY_PORT="3213"
 
 # 定义 no_proxy 列表
-NO_PROXY_LIST="127.0.0.1,localhost,benboerba-virtual-machine,kubeapi.benboerba.com,k8sapi.benboerba.com,kubeapi,k8s-master-1,k8s-master-2,k8s-master-3,k8s-worker-1,k8s-worker-2,k8s-worker-3,192.168.26.20,192.168.26.21,192.168.26.22,192.168.26.23,192.168.26.24,192.168.26.25,192.168.26.26,10.96.0.0/12,192.168.0.0/16"
+NO_PROXY_LIST="127.0.0.1,localhost,benboerba-virtual-machine,kubeapi.benboerba.com,k8sapi.benboerba.com,kubeapi,k8s-master-1,k8s-master-2,k8s-master-3,k8s-worker-1,k8s-worker-2,k8s-worker-3,192.168.26.20,192.168.26.21,192.168.26.22,192.168.26.23,192.168.26.24,192.168.26.25,192.168.26.26,192.168.26.99,10.96.0.0/12,192.168.0.0/16,192.168.26.0/26"
 
-# 判断脚本是否通过 source 调用
-if [[ "$0" == "bash" || "$0" == "-bash" ]]; then
+# 检查脚本是否被 source 调用
+(return 0 2>/dev/null)
+if [ $? -eq 0 ]; then
     IS_SOURCED=1
 else
     IS_SOURCED=0
 fi
 
+# 代理环境变量内容
+PROXY_ENV="
+export http_proxy=http://${PROXY_ADD}:${PROXY_PORT}/
+export https_proxy=http://${PROXY_ADD}:${PROXY_PORT}/
+export ftp_proxy=http://${PROXY_ADD}:${PROXY_PORT}/
+export no_proxy=${NO_PROXY_LIST}
+"
+
 # 启动代理配置
 start_proxy() {
     echo "正在启动代理..."
-    
-    # 配置环境变量启动代理
-    echo "export http_proxy=http://${PROXY_ADD}:${PROXY_PORT}/" >> /etc/profile
-    echo "export https_proxy=http://${PROXY_ADD}:${PROXY_PORT}/" >> /etc/profile
-    echo "export ftp_proxy=http://${PROXY_ADD}:${PROXY_PORT}/" >> /etc/profile
-    echo "export no_proxy=${NO_PROXY_LIST}" >> /etc/profile
-    
-    # 刷新代理配置
-    echo "正在加载 /etc/profile 配置..."
-    source /etc/profile
-    
+
+    # 检查 ~/.bashrc 是否已包含代理配置，避免重复添加
+    grep -q "http_proxy=http://${PROXY_ADD}:${PROXY_PORT}/" ~/.bashrc
+    if [ $? -ne 0 ]; then
+        echo "$PROXY_ENV" >> ~/.bashrc
+        echo "代理配置已写入 ~/.bashrc"
+    else
+        echo "代理配置已存在于 ~/.bashrc"
+    fi
+
+    # 立即在当前 shell 生效
+    eval "$PROXY_ENV"
+
     # 检查环境变量是否正确设置
-    if [ -n "$http_proxy" ] &&[ -n "$https_proxy" ]; then
+    if [ -n "$http_proxy" ] && [ -n "$https_proxy" ]; then
         echo "环境变量已更新："
         echo "http_proxy=$http_proxy"
         echo "https_proxy=$https_proxy"
@@ -39,7 +50,7 @@ start_proxy() {
     else
         echo -e "\033[31m警告:代理未正确启用！！！\033[0m"
     fi
-    
+
     # 根据调用方式决定是否退出
     if [[ $IS_SOURCED -eq 0 ]]; then
         exit 0
@@ -51,26 +62,23 @@ start_proxy() {
 # 停止代理
 stop_proxy() {
     echo "正在关闭代理..."
-    
-    # 清除环境变量中的代理设置
-    sed -i '/^export http_proxy/d' /etc/profile
-    sed -i '/^export https_proxy/d' /etc/profile
-    sed -i '/^export ftp_proxy/d' /etc/profile
-    sed -i '/^export no_proxy/d' /etc/profile
-    
-    # 确保代理关闭成功
+
+    # 从 ~/.bashrc 移除代理配置
+    sed -i '/http_proxy=.*192.168.31.163:3213/d' ~/.bashrc
+    sed -i '/https_proxy=.*192.168.31.163:3213/d' ~/.bashrc
+    sed -i '/ftp_proxy=.*192.168.31.163:3213/d' ~/.bashrc
+    sed -i '/no_proxy=.*benboerba-virtual-machine/d' ~/.bashrc
+
+    # 立即在当前 shell 取消代理
     unset http_proxy https_proxy ftp_proxy no_proxy
-    
-    # 刷新配置
-    source /etc/profile
-    
+
     # 检查代理是否完全关闭
     if [ -n "$http_proxy" ] || [ -n "$https_proxy" ]; then
         echo -e "\033[31m警告:代理未正确关闭！！！\033[0m"
     else
         echo -e "\033[32m代理已完全关闭！\033[0m"
     fi
-    
+
     # 根据调用方式决定是否退出
     if [[ $IS_SOURCED -eq 0 ]]; then
         exit 0
@@ -88,7 +96,7 @@ case "$1" in
         stop_proxy
         ;;
     *)
-        echo "Usage: $0 {start|stop}"
+        echo "Usage: source proxy.sh {start|stop}"
         if [[ $IS_SOURCED -eq 0 ]]; then
             exit 1
         else
@@ -96,4 +104,3 @@ case "$1" in
         fi
         ;;
 esac
-
