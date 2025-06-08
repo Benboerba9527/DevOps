@@ -40,9 +40,9 @@ analyze_single_host() {
                 dmesg | grep -i "error\|critical" || echo -e "${RED}没有找到相关错误信息${NC}"
                 echo -e "${YELLOW}ipmitool sel list信息:${NC}"
                 ipmitool sel list | grep -iE "error|critical" || echo -e "${RED}没有找到相关错误信息${NC}"
-                echo -e "${YELLOW}/var/log/messages信息:${NC}"
+                echo -e "${YELLOW}/var/log/messages信息(最近5条):${NC}"
                 if [ -f /var/log/messages ]; then
-                    grep -iE "error|critical" /var/log/messages || echo -e "${RED}没有找到相关错误信息${NC}"
+                    grep -iE "error|critical" /var/log/messages | tail -n 5 || echo -e "${RED}没有找到相关错误信息${NC}"
                 else
                     echo -e "${RED}/var/log/messages文件不存在${NC}"
                 fi
@@ -57,9 +57,9 @@ EOF
                 dmesg | grep -i "error\|critical" || echo -e "${RED}没有找到相关错误信息${NC}"
                 echo -e "${YELLOW}ipmitool sel list信息:${NC}"
                 ipmitool sel list | grep -iE "error|critical" || echo -e "${RED}没有找到相关错误信息${NC}"
-                echo -e "${YELLOW}/var/log/messages信息:${NC}"
+                echo -e "${YELLOW}/var/log/messages信息(最近5条):${NC}"
                 if [ -f /var/log/messages ]; then
-                    grep -iE "error|critical" /var/log/messages || echo -e "${RED}没有找到相关错误信息${NC}"
+                    grep -iE "error|critical" /var/log/messages | tail -n 5 || echo -e "${RED}没有找到相关错误信息${NC}"
                 else
                     echo -e "${RED}/var/log/messages文件不存在${NC}"
                 fi
@@ -68,7 +68,7 @@ EOF
             echo -e "${RED}无法识别主机 $HOST 的机房类型，跳过...${NC}"
         fi
         echo
-    } | tee -a "$LOG_FILE"
+    } >> "$LOG_FILE" 2>&1
 }
 
 # 多主机并发分析
@@ -131,7 +131,7 @@ uplink_info_get() {
                 fi
             done
             echo
-        } | tee -a "$LOG_FILE"
+        } >> "$LOG_FILE" 2>&1
     done
 }
 
@@ -156,6 +156,8 @@ snmp_check_port() {
     else
         STATUS_MSG="${RED}DOWN${NC}"
     fi
+
+# 光模块发生紧急故障时产生告警OID：1.3.6.1.4.1.25506.2.6.4.0.49	
 
     RX_POWER=$(snmpget -v2c -c public "$SWITCH_IP" 1.3.6.1.4.1.25506.2.70.1.1.1.1.9."$IFINDEX" 2>/dev/null | awk '{print $NF}')
     [[ -z "$RX_POWER" ]] && RX_POWER="N/A"
@@ -190,7 +192,7 @@ query_product_log() {
         # 假设日志路径为 /var/log/product.log
         ssh "$HOST" "tail -n 100 /var/log/product.log 2>/dev/null || echo '未找到产品日志文件'" 
         echo
-    } | tee -a "$LOG_FILE"
+        } >> "$LOG_FILE" 2>&1
 }
 
 # 菜单
