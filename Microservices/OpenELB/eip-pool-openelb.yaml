@@ -5,10 +5,8 @@ metadata:
     annotations:
       eip.openelb.kubesphere.io/is-default-eip: "true"
 spec:
-    address: 192.168.26.30-192.168.26.33
+    address: 192.168.26.30-192.168.26.50
     priority: 100
-    namespaces:
-      - custom-food-menu
     namespaceSelector:
       kubesphere.io/workspace: workspace
     disable: false
